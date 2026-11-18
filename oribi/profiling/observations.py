@@ -61,6 +61,10 @@ class AnalysisSession:
             logical = "unknown" if len(kinds) > 1 and len({"str" if issubclass(t, str) else t.__name__ for t in kinds}) > 1 else "text"
             if values.empty:
                 logical = "unknown"
+            elif pd.api.types.infer_dtype(values, skipna=True) in {
+                "integer", "floating", "mixed-integer-float"
+            }:
+                logical = "numeric"
         else:
             logical = "unknown"
         obs = ColumnObservation(str(name), series, missing, distinct, logical)

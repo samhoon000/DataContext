@@ -1,6 +1,27 @@
 import pandas as pd
+import pytest
 
 from oribi import ProfileOptions, inspect
+
+
+@pytest.mark.parametrize("values,mean", [([1, 2, 3, pd.NA], 2.0), ([1.5, 2.5, pd.NA], 2.0), ([1, 3.0, pd.NA], 2.0)])
+def test_numeric_object_values_with_missing_data_are_profiled(values, mean):
+    column = inspect(pd.DataFrame({"amount": pd.Series(values, dtype=object)})).columns[0]
+    assert column.logical_type == "numeric"
+    assert column.statistics.missing_count == 1
+    assert column.statistics.mean == mean
+    assert column.statistics.minimum == min(v for v in values if v is not pd.NA)
+
+
+@pytest.mark.parametrize("values", [
+    [True, False, pd.NA], [1, True, pd.NA], ["1", "2", pd.NA],
+    [1, "2", pd.NA], [1.0, "x", pd.NA], [1 + 2j, pd.NA],
+    [pd.NA, None], list(range(101)) + ["late text", pd.NA],
+])
+def test_object_controls_do_not_enter_numeric_statistics(values):
+    column = inspect(pd.DataFrame({"amount": pd.Series(values, dtype=object)})).columns[0]
+    assert column.logical_type != "numeric"
+    assert column.statistics.mean is None
 
 
 def test_numeric_and_temporal_profile(sales_frame):

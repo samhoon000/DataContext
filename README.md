@@ -41,6 +41,9 @@ The in-memory `DatasetContext` retains local `top_values` and exact bounds for i
 
 - Dataset row/column counts and duplicate rows.
 - Per-column missingness, distinct counts, numeric summaries, categorical top values, and datetime bounds.
+  Object columns containing only real integer/float values and missing values receive numeric
+  summaries too. Numeric-looking strings, booleans, complex objects and mixed-type columns
+  retain conservative non-numeric handling; native complex dtypes remain unsupported.
 - Likely roles such as identifier, measure, dimension, categorical, temporal, boolean, text, or unknown, with evidence.
 - Candidate single-column and bounded two-column keys, with observed duplicate and null counts. `verified_unique` means only that the observed rows have no collisions or null components; it does not certify a business key. Near-unique candidates remain diagnostics and cannot establish the reported grain.
 - Per-column cardinality (observed/unique values, uniqueness ratio, and records-per-value range), plus evidence-backed one-to-many and functional-dependency relationships.
