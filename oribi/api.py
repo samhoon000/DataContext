@@ -73,8 +73,9 @@ def _profile_index(df: pd.DataFrame) -> IndexContext | None:
 def inspect(df: pd.DataFrame, *, options: ProfileOptions | None = None) -> DatasetContext:
     """Profile a pandas DataFrame and return its analytical context snapshot.
 
-    The returned context contains no reference to ``df``. Object columns that
-    appear datetime-like are not parsed automatically.
+    The returned context contains no reference to ``df``. Sampled built-in lists
+    and dictionaries are copied, including those nested within them. Object
+    columns that appear datetime-like are not parsed automatically.
     """
     options = options or ProfileOptions()
     if not isinstance(options, ProfileOptions):

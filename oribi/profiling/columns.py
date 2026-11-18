@@ -9,6 +9,29 @@ from ..models.profile import StatisticsContext
 from .observations import ColumnObservation
 
 
+def _snapshot_top_value(value: Any, copies: dict[int, Any]) -> Any:
+    """Copy built-in list and dict values without copying arbitrary objects."""
+    kind = type(value)
+    if kind is not list and kind is not dict:
+        return value
+
+    identity = id(value)
+    if identity in copies:
+        return copies[identity]
+
+    # Register the copy before visiting children so cycles keep their shape.
+    if kind is list:
+        items: list[Any] = []
+        copies[identity] = items
+        items.extend(_snapshot_top_value(item, copies) for item in value)
+        return items
+
+    entries: dict[Any, Any] = {}
+    copies[identity] = entries
+    entries.update((key, _snapshot_top_value(item, copies)) for key, item in value.items())
+    return entries
+
+
 def profile_column(obs: ColumnObservation, row_count: int, top_k: int, include_quantiles: bool) -> StatisticsContext:
     s = obs.series
     denom = row_count or 1
@@ -38,7 +61,7 @@ def profile_column(obs: ColumnObservation, row_count: int, top_k: int, include_q
         try:
             counts = non_null.value_counts(dropna=True)
             counts = counts[counts > 0].head(top_k)
-            values["top_values"] = tuple((k, int(v)) for k, v in counts.items())
+            values["top_values"] = tuple((_snapshot_top_value(k, {}), int(v)) for k, v in counts.items())
             values["top_frequencies"] = tuple(int(v) for v in counts.values)
         except (TypeError, ValueError):
             pass
