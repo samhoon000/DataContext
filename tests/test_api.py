@@ -73,3 +73,15 @@ def test_numeric_quantiles_with_infinity_are_finite(infinite):
     frame = pd.DataFrame({"value": [1.0, 2.0, infinite, 4.0]})
     stats = inspect(frame).columns[0].statistics
     assert all(q is None or (pd.notna(q) and math.isfinite(q)) for q in stats.quantiles.values())
+
+
+@pytest.mark.parametrize("invalid_options", [False, 0, {}])
+def test_inspect_rejects_falsy_invalid_options(invalid_options):
+    frame = pd.DataFrame({"value": [1, 2, 3]})
+    with pytest.raises(InvalidInputError, match="ProfileOptions"):
+        inspect(frame, options=invalid_options)
+
+
+def test_inspect_none_and_omitted_options_match_defaults():
+    frame = pd.DataFrame({"value": [1, 2, 3]})
+    assert inspect(frame).to_dict() == inspect(frame, options=None).to_dict()
