@@ -77,7 +77,8 @@ def inspect(df: pd.DataFrame, *, options: ProfileOptions | None = None) -> Datas
     and dictionaries are copied, including those nested within them. Object
     columns that appear datetime-like are not parsed automatically.
     """
-    options = options or ProfileOptions()
+    if options is None:
+        options = ProfileOptions()
     if not isinstance(options, ProfileOptions):
         raise InvalidInputError("options must be a ProfileOptions instance")
     session = AnalysisSession(df, options)
