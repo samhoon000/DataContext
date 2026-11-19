@@ -1,10 +1,12 @@
 import math
+from dataclasses import replace
 
 import pandas as pd
 import pytest
 
 from oribi import ProfileOptions, StatisticsContext, inspect
 from oribi.exceptions import InvalidInputError
+from oribi.models.evidence import Warning
 
 
 def test_statistics_context_preserves_positional_date_range():
@@ -23,6 +25,42 @@ def test_inspect_returns_context_and_is_deterministic(sales_frame):
     assert a.profile.row_count == 4
     assert a.profile.column_count == 5
     assert "Dataset:" in a.summary()
+
+
+def test_summary_shows_a_warning_and_the_likely_grain():
+    frame = pd.DataFrame({
+        "order_id": [1, 2, 3, 4, 5, 6],
+        "amount": [10, None, None, None, None, 20],
+    })
+    summary = inspect(frame).summary()
+    assert "Likely grain: order_id" in summary
+    assert "1 analytical warning(s) detected." in summary
+    assert "[medium] amount is missing 66.7% of its values." in summary
+
+
+def test_summary_without_warnings_keeps_the_profile_and_grain():
+    context = inspect(pd.DataFrame({"order_id": [1, 2, 3, 4], "amount": [10, 20, 30, 40]}))
+    assert not context.warnings
+    summary = context.summary()
+    assert "Dataset: 4 rows × 2 columns." in summary
+    assert "Likely grain: order_id" in summary
+    assert "Key findings" not in summary
+
+
+def test_summary_prioritizes_distinct_warnings_and_limits_added_text(sales_frame):
+    low = Warning("low", "low", "Low", "Low-priority detail.")
+    high = Warning("high", "high", "High", "High-priority detail.")
+    critical = Warning("critical", "critical", "Critical", "Critical detail.")
+    wordy = Warning("medium", "medium", "Medium", "Medium detail. " + "word " * 1000)
+    context = replace(inspect(sales_frame), warnings=(low, high, critical, high, wordy))
+
+    summary = context.summary()
+
+    assert summary.index("[critical]") < summary.index("[high]") < summary.index("[medium]")
+    assert summary.count("High-priority detail") == 1
+    assert "Medium detail" in summary
+    assert "Low-priority detail" not in summary
+    assert len(summary) < 450
 
 
 def test_options_control_quantiles(sales_frame):

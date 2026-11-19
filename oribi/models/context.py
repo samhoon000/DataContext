@@ -1,6 +1,7 @@
 """Canonical result returned by :func:`oribi.inspect`."""
 
 from dataclasses import dataclass
+from textwrap import shorten
 from typing import Any
 
 from .evidence import CardinalityContext, ColumnRelationshipContext, GrainContext, KeyCandidate, Recommendation, RelationshipContext, SemanticContext, Warning
@@ -49,6 +50,7 @@ class DatasetContext:
         return to_context(self, max_chars=max_chars, include_values=include_values)
 
     def summary(self) -> str:
+        """Summarize the profile, likely grain, and up to three analytical warnings."""
         rows = self.profile.row_count
         cols = self.profile.column_count
         parts = [f"Dataset: {rows:,} rows × {cols:,} columns."]
@@ -59,5 +61,12 @@ class DatasetContext:
         elif self.grain:
             parts.append("Likely grain could not be determined confidently.")
         if self.warnings:
+            from ..serialization.context import prioritize_warnings
+
             parts.append(f"{len(self.warnings)} analytical warning(s) detected.")
+            findings = (
+                f"[{warning.severity}] {shorten(warning.message, width=140, placeholder='…')}"
+                for warning in prioritize_warnings(self.warnings)[:3]
+            )
+            parts.append("Key findings: " + " · ".join(findings))
         return " ".join(parts)

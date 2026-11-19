@@ -32,7 +32,7 @@ print(context.summary())
 print(context.to_context(max_chars=2_000))
 ```
 
-`summary()` gives you a readable overview. `to_context()` creates a compact representation that you can include in an AI prompt.
+`summary()` gives you a readable overview of the dataset, its likely grain, and up to three analytical warnings. `to_context()` creates a compact representation that you can include in an AI prompt.
 
 ## What Oribi reports
 

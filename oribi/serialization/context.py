@@ -1,12 +1,24 @@
 """Compact AI-oriented rendering of an existing context snapshot."""
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date, datetime
 from numbers import Number
 from typing import Any
 
+from ..models.evidence import Warning
+
 
 _ContextLine = str | tuple[str, str]
+
+
+def prioritize_warnings(warnings: Iterable[Warning]) -> list[Warning]:
+    """Return distinct findings in severity order with deterministic tie-breaking."""
+    severity_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    distinct = {(warning.code, warning.message): warning for warning in warnings}
+    return sorted(
+        distinct.values(),
+        key=lambda warning: (severity_rank.get(warning.severity, 4), warning.code, warning.message),
+    )
 
 
 def _render_with_evidence(sections: Sequence[Sequence[_ContextLine]], max_chars: int) -> str | None:
@@ -314,12 +326,7 @@ def to_context(context: Any, *, max_chars: int = 8000, include_values: bool = Fa
     else:
         essentials += [f"- {col.name}: {col.dtype}, {col.semantic.role}; {col.statistics.missing_rate:.0%} missing" for col in ranked]
     if warning_lines:
-        severity_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        distinct_warnings = {(warning.code, warning.message): warning for warning in all_warnings}
-        prioritized = sorted(
-            distinct_warnings.values(),
-            key=lambda warning: (severity_rank.get(warning.severity, 4), warning.code, warning.message),
-        )
+        prioritized = prioritize_warnings(all_warnings)
         selected_warnings = prioritized[:10]
         essentials += ["", "WARNINGS", *(f"⚠ {warning.message}" for warning in selected_warnings)]
         if len(prioritized) > len(selected_warnings):
