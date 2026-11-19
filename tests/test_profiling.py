@@ -1,7 +1,80 @@
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
-from oribi import ProfileOptions, inspect
+from oribi import ProfileOptions, api, inspect
+
+
+@pytest.mark.parametrize(
+    "values,expected_code,observed,dominant,missing",
+    [
+        (pd.Series(["sample", "sample", None], dtype="string"), "constant_column", 2, 2, 1),
+        (pd.Series([10] * 19 + [11, None], dtype="Int64"), "near_constant_column", 20, 19, 1),
+        (pd.Series(pd.Categorical(["a"] * 19 + ["b"], categories=["a", "b", "unused"])),
+         "near_constant_column", 20, 19, 0),
+        (pd.Series([True] * 18 + [False], dtype="boolean"), None, 19, 18, 0),
+        (pd.Series([1, True, 1], dtype=object), None, 3, 3, 0),
+        (pd.Series([1, pd.NA, pd.NA], dtype="Int64"), None, 1, 1, 2),
+        (pd.Series([None, None], dtype=object), None, 0, None, 2),
+        (pd.Series([], dtype="float64"), None, 0, None, 0),
+    ],
+)
+def test_column_constancy_uses_observed_value_frequencies(values, expected_code, observed, dominant, missing):
+    context = inspect(pd.DataFrame({"value": values}), options=ProfileOptions(max_exact_rows=1))
+    (column,) = context.columns
+    card = column.cardinality
+    assert (card.observed_count, card.maximum_records_per_value, card.missing_count) == (observed, dominant, missing)
+    if observed == 1:
+        assert column.statistics.standard_deviation is None
+    if expected_code is None:
+        assert card.constancy is None
+    else:
+        assert card.constancy.code == expected_code
+        assert card.constancy.details == {
+            "observed_count": observed,
+            "dominant_count": dominant,
+            "dominant_share": dominant / observed,
+            "missing_count": missing,
+        }
+
+
+def test_constancy_is_exported_without_values_or_effect_on_inference(monkeypatch):
+    private_value = "constant-marker-private"
+    frame = pd.DataFrame({
+        "row_id": range(20),
+        "region": [private_value] * 19 + ["other"],
+        "store": [private_value] * 20,
+        "quantity": [1, 2, 3, 4, 5] * 4,
+    })
+    context = inspect(frame)
+    profile_cardinality = api.profile_cardinality
+    monkeypatch.setattr(api, "profile_cardinality", lambda *args: replace(profile_cardinality(*args), constancy=None))
+    without_constancy = inspect(frame)
+
+    assert context.grain == without_constancy.grain
+    assert context.candidate_keys == without_constancy.candidate_keys
+    assert context.relationships == without_constancy.relationships
+    assert context.warnings == without_constancy.warnings
+    for column, baseline in zip(context.columns, without_constancy.columns):
+        assert (column.semantic, column.relationships, column.recommendations) == (
+            baseline.semantic, baseline.relationships, baseline.recommendations
+        )
+    exported = {col["name"]: col["cardinality"]["constancy"] for col in context.to_dict()["columns"]}
+    assert exported["region"]["code"] == "near_constant_column"
+    assert exported["store"]["code"] == "constant_column"
+    assert exported["row_id"] is None
+    for rendered in (context.to_markdown(), context.to_context()):
+        assert "Near-constant" in rendered and "Constant across 20" in rendered
+        assert private_value not in rendered
+    assert private_value not in context.to_json()
+
+
+def test_constancy_does_not_require_top_value_samples():
+    frame = pd.DataFrame({"quantity": [10] * 190 + list(range(11, 21))})
+    (column,) = inspect(frame, options=ProfileOptions(top_k=1)).columns
+    assert column.statistics.top_values == ()
+    assert column.cardinality.constancy.details["dominant_share"] == .95
 
 
 def test_large_integer_bounds_keep_exact_precision():

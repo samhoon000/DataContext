@@ -107,6 +107,7 @@ class CardinalityContext:
     maximum_records_per_value: int | None
     missing_count: int = 0
     missing_rate: float = 0.0
+    constancy: Evidence | None = None
 
 
 @dataclass(frozen=True)

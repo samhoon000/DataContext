@@ -132,6 +132,8 @@ def to_markdown(context: Any, *, include_values: bool = False) -> str:
                     f"(min {card.minimum_records_per_value}, max {card.maximum_records_per_value}); "
                     f"{card.missing_count:,} missing ({card.missing_rate:.1%})"
                 )
+            if card.constancy is not None:
+                lines.append(f"- {_md(card.constancy.statement)}")
         if include_values and (s.minimum is not None or s.maximum is not None):
             lines.append(f"- Range: {_md(s.minimum)} to {_md(s.maximum)}")
         if include_values and s.top_values:

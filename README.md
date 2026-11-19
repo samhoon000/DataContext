@@ -71,6 +71,11 @@ prompt_context = context.to_context(max_chars=8_000)
 
 Each method renders the same profile. The serializers do not re read the DataFrame or run new inferences.
 
+Column cardinality reports a constant when all non-missing rows share one
+value and at least two rows are observed. A near-constant has one value in at
+least 95% of non-missing rows alongside other values. Evidence reports counts
+without exposing the value. Ambiguous mixed object columns omit this evidence.
+
 ## Data handling
 
 Oribi profiles the DataFrame in memory and does not keep a reference to it in the returned context. The in-memory `DatasetContext` retains local `top_values` and exact bounds for inspection.

@@ -41,6 +41,8 @@ def profile_column(obs: ColumnObservation, row_count: int, top_k: int, include_q
         numeric = pd.to_numeric(non_null, errors="coerce").dropna()
         if len(numeric):
             def finite_or_none(value: Any) -> float | None:
+                if pd.isna(value):
+                    return None
                 result = float(value)
                 return result if math.isfinite(result) else None
 

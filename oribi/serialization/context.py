@@ -162,8 +162,8 @@ def _column_role_lines(context: Any) -> list[str]:
     return lines if len(lines) > 1 else []
 
 
-def _cardinality_lines(context: Any) -> list[str]:
-    lines = ["CARDINALITY"]
+def _cardinality_lines(context: Any) -> list[_ContextLine]:
+    lines: list[_ContextLine] = ["CARDINALITY"]
     for column in sorted(context.columns, key=lambda item: item.name):
         card = column.cardinality
         if card is None:
@@ -177,7 +177,8 @@ def _cardinality_lines(context: Any) -> list[str]:
             line += f"; {card.missing_count:,} missing ({card.missing_rate:.0%})"
             line += f"; average {card.average_records_per_value:.2f} records/value"
             line += f" (min {card.minimum_records_per_value}, max {card.maximum_records_per_value})"
-        lines.append(line)
+        constancy = card.constancy
+        lines.append((line, f" · {constancy.statement}") if constancy else line)
     return lines if len(lines) > 1 else []
 
 
