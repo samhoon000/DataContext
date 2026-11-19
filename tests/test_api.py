@@ -1,3 +1,5 @@
+import math
+
 import pandas as pd
 import pytest
 
@@ -66,3 +68,8 @@ def test_complex_column_raises_public_input_error(values):
 def test_valid_numeric_column_still_profiles():
     column = inspect(pd.DataFrame({"signal": [1.0, 2.0, 3.0]})).columns[0]
     assert column.statistics.quantiles["0.5"] == 2.0
+@pytest.mark.parametrize("infinite", [float("inf"), float("-inf")])
+def test_numeric_quantiles_with_infinity_are_finite(infinite):
+    frame = pd.DataFrame({"value": [1.0, 2.0, infinite, 4.0]})
+    stats = inspect(frame).columns[0].statistics
+    assert all(q is None or (pd.notna(q) and math.isfinite(q)) for q in stats.quantiles.values())

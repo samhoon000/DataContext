@@ -44,14 +44,26 @@ def profile_column(obs: ColumnObservation, row_count: int, top_k: int, include_q
                 result = float(value)
                 return result if math.isfinite(result) else None
 
-            values.update(minimum=numeric.min(), maximum=numeric.max(), mean=finite_or_none(numeric.mean()), median=finite_or_none(numeric.median()), standard_deviation=finite_or_none(numeric.std()))
+            # Pandas' mean/median/std/skew emit a RuntimeWarning and can yield
+            # NaN when the series holds infinities (e.g. nanops computes
+            # (avg - values) ** 2 over inf). Compute the moment statistics on
+            # the finite subset so no warning is raised; infinities are simply
+            # excluded rather than turning the whole statistic into NaN.
+            finite = numeric[numeric.map(math.isfinite)]
+            values.update(
+                minimum=finite_or_none(finite.min()) if len(finite) else None,
+                maximum=finite_or_none(finite.max()) if len(finite) else None,
+                mean=finite_or_none(finite.mean()) if len(finite) else None,
+                median=finite_or_none(finite.median()) if len(finite) else None,
+                standard_deviation=finite_or_none(finite.std()) if len(finite) else None,
+            )
             values["zero_count"] = int((numeric == 0).sum())
             values["negative_count"] = int((numeric < 0).sum())
             if include_quantiles:
-                qs = numeric.quantile([.25, .5, .75])
-                values["quantiles"] = {str(q): float(v) for q, v in qs.items()}
-            if len(numeric) >= 3 and numeric.nunique() > 1:
-                skew = float(numeric.skew())
+                qs = finite.quantile([.25, .5, .75]) if len(finite) else {}
+                values["quantiles"] = {str(q): finite_or_none(v) for q, v in qs.items()}
+            if len(finite) >= 3 and finite.nunique() > 1:
+                skew = float(finite.skew())
                 values["skewness"] = skew if pd.notna(skew) else None
     elif obs.logical_type == "temporal" and len(non_null):
         values["minimum"] = non_null.min()
