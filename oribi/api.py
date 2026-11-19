@@ -13,7 +13,7 @@ from .profiling.columns import profile_column
 from .profiling.cardinality import profile_cardinality
 from .profiling.observations import AnalysisSession
 from .profiling.relationships import detect_relationships, infer_column_relationships
-from .profiling.temporal import temporal_gap_warnings
+from .profiling.temporal import date_like_evidence, temporal_gap_warnings
 from .reasoning.keys import detect_keys
 from .reasoning.rules import dataset_warnings, reason_column
 from .reasoning.semantic import infer_semantic
@@ -85,8 +85,8 @@ def inspect(df: pd.DataFrame, *, options: ProfileOptions | None = None) -> Datas
     """Profile a pandas DataFrame and return its analytical context snapshot.
 
     The returned context contains no reference to ``df``. Sampled built-in lists
-    and dictionaries are copied, including those nested within them. Object
-    columns that appear datetime-like are not parsed automatically.
+    and dictionaries are copied, including those nested within them. Temporal
+    role inference for string or object columns preserves their original values.
     """
     if options is None:
         options = ProfileOptions()
@@ -109,6 +109,11 @@ def inspect(df: pd.DataFrame, *, options: ProfileOptions | None = None) -> Datas
             stats[name],
             nrows,
             is_float=pd.api.types.is_float_dtype(observations[name].series.dtype),
+            date_evidence=(
+                date_like_evidence(observations[name].series, observations[name].distinct_count)
+                if observations[name].logical_type in {"text", "unknown"}
+                else None
+            ),
         )
         for name in names
     }

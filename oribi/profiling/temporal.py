@@ -2,6 +2,8 @@
 
 from collections import Counter
 from dataclasses import replace
+from datetime import date, datetime
+import re
 
 import pandas as pd
 
@@ -10,6 +12,54 @@ from ..models.evidence import Evidence, Warning
 _MIN_UNIQUE_TIMESTAMPS = 4
 _MIN_CADENCE_INTERVALS = 2
 _MIN_CADENCE_SHARE = 0.6
+_ISO_CALENDAR_VALUE = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    r"(?:[T ][0-9]{2}:[0-9]{2}(?::[0-9]{2}(?:\.[0-9]{1,9})?)?"
+    r"(?:Z|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])?)?"
+)
+
+
+def date_like_evidence(series: pd.Series, distinct_count: int) -> Evidence | None:
+    """Identify calendar values held in object or string columns."""
+    values = series.dropna()
+    if values.empty:
+        return None
+    first = values.iloc[0]
+    details = {"observed_count": len(values), "distinct_count": distinct_count}
+    if isinstance(first, str):
+        if distinct_count < 2 or not _valid_iso_calendar_value(first):
+            return None
+        if pd.api.types.infer_dtype(values, skipna=False) == "string" and all(
+            _valid_iso_calendar_value(value) for value in values.unique()
+        ):
+            return Evidence(
+                "iso_temporal_values",
+                f"All {distinct_count} distinct non-missing strings are ISO dates or timestamps",
+                details,
+            )
+        return None
+    kind = pd.api.types.infer_dtype(values, skipna=False)
+    if kind in {"date", "datetime", "datetime64"} or (
+        isinstance(first, date) and all(isinstance(value, date) for value in values)
+    ):
+        return Evidence(
+            "temporal_object_values",
+            f"All {len(values)} non-missing values are date or datetime objects",
+            details,
+        )
+    return None
+
+
+def _valid_iso_calendar_value(value: str) -> bool:
+    if _ISO_CALENDAR_VALUE.fullmatch(value) is None:
+        return False
+    # Python 3.10 requires an explicit offset for the UTC designator.
+    iso_value = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        datetime.fromisoformat(iso_value)
+    except ValueError:
+        return False
+    return True
 
 
 def temporal_gap_warnings(series: pd.Series, column_name: str, *, max_examples: int = 3,

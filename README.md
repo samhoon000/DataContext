@@ -50,6 +50,8 @@ Oribi records measurements from the DataFrame and keeps its interpretations tied
 
 A role, key, relationship, or grain estimate is an **inference**, not a guarantee about business meaning. Oribi includes evidence so an analyst or downstream system can judge how much to trust each result.
 
+Object columns with date values and text columns whose distinct values are valid ISO calendar dates or timestamps can receive a temporal role. Text inference requires at least two distinct non-missing values. Datetime bounds and cadence use pandas datetime dtypes.
+
 ## Choose an output format
 
 A `DatasetContext` can be rendered for different uses:

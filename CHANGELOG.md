@@ -2,6 +2,10 @@
 
 All notable changes to Oribi are recorded here.
 
+## Unreleased
+
+- Infer temporal roles for consistent ISO date strings and date objects while keeping their stored values.
+
 ## 0.2.0 — 2026-11-19
 
 ### Compatibility

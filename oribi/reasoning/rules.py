@@ -21,9 +21,8 @@ def reason_column(name: str, logical_type: str, semantic: object, stats: object,
             warnings.append(Warning("negative_measure_values", "low", f"Negative values in {name}", f"{stats.negative_count} negative values were observed in likely measure {name}.", (Evidence("negative_count", f"{stats.negative_count} values are below zero", {"negative_count": stats.negative_count}),), "Negative values may represent refunds, reversals, or data issues.", "Check domain meaning before filtering negative values."))
     if logical_type == "categorical" and stats.distinct_count > 100:
         warnings.append(Warning("high_cardinality_category", "low", "High-cardinality category", f"{name} has {stats.distinct_count} distinct categories.", (), "Grouping by this column may produce many small groups."))
-    if logical_type == "text" and semantic.role != "identifier" and stats.distinct_count > 100:
-        # Identifier-like text is expected to be near-unique; it has its own
-        # non_unique_identifier handling instead.
+    if logical_type == "text" and semantic.role not in {"identifier", "temporal"} and stats.distinct_count > 100:
+        # Identifiers and dates are often expected to have many distinct values.
         observed = row_count - stats.missing_count
         ratio = stats.distinct_count / observed if observed else 0.0
         warnings.append(Warning("high_cardinality_text", "low", "High-cardinality text", f"{name} has {stats.distinct_count} distinct text values across {observed} non-missing rows.", (Evidence("distinct_count", f"{stats.distinct_count} distinct values ({ratio:.1%} of non-missing rows)", {"distinct_count": stats.distinct_count, "non_missing_count": observed, "uniqueness_ratio": ratio}),), "Grouping or aggregating by this column may produce many small groups.", "Use it as a label or free text rather than as a grouping dimension, or bucket it before grouping."))

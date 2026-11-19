@@ -15,6 +15,7 @@ def infer_semantic(
     row_count: int,
     *,
     is_float: bool = False,
+    date_evidence: Evidence | None = None,
 ) -> SemanticContext:
     votes: dict[str, float] = {}
     evidence: list[Evidence] = []
@@ -64,6 +65,9 @@ def infer_semantic(
     elif logical_type == "temporal":
         votes["temporal"] = .86
         evidence.append(Evidence("datetime_dtype", "Column has a datetime dtype"))
+    elif date_evidence is not None:
+        votes["temporal"] = .84
+        evidence.append(date_evidence)
     elif logical_type == "boolean":
         votes["boolean"] = .9
         evidence.append(Evidence("boolean_dtype", "Column has a boolean dtype"))
