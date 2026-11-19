@@ -2,9 +2,9 @@
 
 **Give AI a useful picture of your data before it starts analyzing it.**
 
-Oribi is an open-source Python library that profiles a pandas DataFrame and turns what it finds into structured analytical context. The result describes the dataset, its columns, likely semantic roles, candidate keys, possible grain, relationships, and analytical warnings.
+Oribi is an open source Python library that profiles a pandas DataFrame and turns what it finds into structured analytical context. The result describes the dataset, its columns, likely semantic roles, candidate keys, possible grain, relationships, and analytical warnings.
 
-Use that context as a starting point for AI-assisted analysis, SQL generation, charting, or your own data exploration. Oribi profiles the DataFrame locally. It does not send your rows to an AI provider, and it does not require a specific model or AI service.
+Use that context as a starting point for AI assisted analysis, SQL generation, charting, or your own data exploration. Oribi profiles the DataFrame locally. It does not send your rows to an AI provider, and it does not require a specific model or AI service.
 
 ## Get started
 
@@ -43,10 +43,10 @@ Oribi records measurements from the DataFrame and keeps its interpretations tied
 | Dataset | Row and column counts, duplicate rows, and index information |
 | Columns | Missingness, distinct counts, numeric summaries, categorical top values, and datetime bounds |
 | Semantic roles | Likely identifiers, measures, dimensions, categories, temporal fields, booleans, text, or unknown columns |
-| Keys and grain | Candidate single- and two-column keys, plus an estimate of what one row may represent |
+| Keys and grain | Candidate single- and two column keys, plus an estimate of what one row may represent |
 | Relationships | Cardinality and observed value relationships within the DataFrame |
 | Analysis guidance | Recommendations for likely measures and identifier counts |
-| Warnings | Duplicate rows, missingness, non-unique identifiers, negative or skewed measures, high-cardinality categories, and possible gaps in regular datetime series |
+| Warnings | Duplicate rows, missingness, non unique identifiers, negative or skewed measures, high cardinality categories, and possible gaps in regular datetime series |
 
 A role, key, relationship, or grain estimate is an **inference**, not a guarantee about business meaning. Oribi includes evidence so an analyst or downstream system can judge how much to trust each result.
 
@@ -69,13 +69,13 @@ json_text = context.to_json()
 prompt_context = context.to_context(max_chars=8_000)
 ```
 
-Each method renders the same profile. The serializers do not re-read the DataFrame or run new inferences.
+Each method renders the same profile. The serializers do not re read the DataFrame or run new inferences.
 
 ## Data handling
 
 Oribi profiles the DataFrame in memory and does not keep a reference to it in the returned context. The in-memory `DatasetContext` retains local `top_values` and exact bounds for inspection.
 
-By default, shareable exports (`to_dict`, `to_json`, `to_markdown`, and `to_context`) omit sampled cell values and exact bounds, regardless of column name. Dictionary and JSON exports retain top-frequency counts; evidence detail strings are redacted recursively. Numeric summary statistics are suppressed when fewer than three values were observed, since they could reveal an individual value.
+By default, shareable exports (`to_dict`, `to_json`, `to_markdown`, and `to_context`) omit sampled cell values and exact bounds, regardless of column name. Dictionary and JSON exports retain top frequency counts; evidence detail strings are redacted recursively. Numeric summary statistics are suppressed when fewer than three values were observed, since they could reveal an individual value.
 
 You can explicitly include local values and bounds when exporting:
 
@@ -83,7 +83,7 @@ You can explicitly include local values and bounds when exporting:
 json_text = context.to_json(include_values=True)
 ```
 
-The other export methods accept the same option. Treat opt-in output as containing raw-data details. Aggregates can also disclose information in some settings, so review context before sharing it, especially when the source is sensitive.
+The other export methods accept the same option. Treat opt-in output as containing raw data details. Aggregates can also disclose information in some settings, so review context before sharing it, especially when the source is sensitive.
 
 ## Configure a profile
 
@@ -119,13 +119,13 @@ Use the profile as evidence for further analysis, and check whether each inferen
 
 ## Current scope and limitations
 
-Oribi currently works with in-memory pandas DataFrames. It does not connect to databases or remote data sources, and it does not include an AI-provider integration. You choose where the generated context goes.
+Oribi currently works with in memory pandas DataFrames. It does not connect to databases or remote data sources, and it does not include an AI provider integration. You choose where the generated context goes.
 
 - Python 3.10–3.14 and pandas 1.5.3 or newer, below pandas 4.
 - Column labels must be unique strings.
-- Datetime-like text is not parsed automatically.
-- Native complex-valued columns are unsupported and raise `InvalidInputError`.
-- Profiling may require several full-column scans. Exact composite-key and relationship checks are bounded by configured row and column limits.
+- Datetime like text is not parsed automatically.
+- Native complex valued columns are unsupported and raise `InvalidInputError`.
+- Profiling may require several full column scans. Exact composite key and relationship checks are bounded by configured row and column limits.
 
 ## Development
 
@@ -148,7 +148,7 @@ pytest -q
 python -m build
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and [DESIGN.md](DESIGN.md) for architecture notes. To run the end-to-end example:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and [DESIGN.md](DESIGN.md) for architecture notes. To run the end to end example:
 
 ```bash
 python -m examples.quickstart
