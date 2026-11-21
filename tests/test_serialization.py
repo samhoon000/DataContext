@@ -212,6 +212,60 @@ def test_inspect_preserves_cycles_and_shared_items_in_a_snapshot():
     assert snapshot["first"] is not shared
 
 
+def test_opt_in_exports_raise_clear_error_for_circular_list_sample():
+    import pandas as pd
+
+    sample = []
+    sample.append(sample)
+    context = inspect(pd.DataFrame({"items": [sample]}))
+
+    with pytest.raises(ValueError, match="circular reference") as dict_error:
+        context.to_dict(include_values=True)
+    assert "top_values" in str(dict_error.value)
+    assert "include_values" in str(dict_error.value)
+    with pytest.raises(ValueError, match="circular reference"):
+        context.to_json(include_values=True)
+
+
+def test_opt_in_exports_raise_clear_error_for_circular_dict_sample():
+    import pandas as pd
+
+    sample = {"label": "x"}
+    sample["self"] = sample
+    context = inspect(pd.DataFrame({"value": [sample]}))
+
+    with pytest.raises(ValueError, match="circular reference"):
+        context.to_dict(include_values=True)
+    with pytest.raises(ValueError, match="circular reference"):
+        context.to_json(include_values=True)
+
+
+def test_opt_in_export_serializes_sample_reusing_the_same_child_twice():
+    import pandas as pd
+
+    shared = ["a"]
+    sample = {"first": shared, "second": shared}
+    context = inspect(pd.DataFrame({"value": [sample]}))
+
+    exported = context.to_dict(include_values=True)
+    assert exported["columns"][0]["statistics"]["top_values"] == [
+        [{"first": ["a"], "second": ["a"]}, 1]
+    ]
+    assert json.loads(context.to_json(include_values=True)) == exported
+
+
+def test_default_exports_succeed_for_circular_samples_and_omit_values():
+    import pandas as pd
+
+    sample = []
+    sample.append(sample)
+    context = inspect(pd.DataFrame({"items": [sample]}))
+
+    exported = context.to_dict()
+    assert exported["columns"][0]["statistics"]["top_values"] == []
+    assert json.loads(context.to_json()) == exported
+
+
 def test_context_limit_keeps_an_explicit_marker_for_long_labels():
     import pandas as pd
 

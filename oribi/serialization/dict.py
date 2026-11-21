@@ -10,37 +10,94 @@ from typing import Any
 from ..models.evidence import CategoricalContext
 
 
-def _normalize(value: Any, include_values: bool = False, *, evidence_details: bool = False) -> Any:
+class _CircularReferenceError(ValueError):
+    """Internal signal raised when normalization meets a cycle; surfaced as ValueError."""
+
+
+def _circular_reference_error(path: str) -> _CircularReferenceError:
+    location = f" at '{path}'" if path else ""
+    return _CircularReferenceError(
+        f"Cannot export circular reference{location}: the sampled values contain a cycle. "
+        "Retry with include_values=False (the default) to omit sampled values."
+    )
+
+
+def _normalize(
+    value: Any,
+    include_values: bool = False,
+    *,
+    evidence_details: bool = False,
+    _active: set[int] | None = None,
+    _path: str = "",
+) -> Any:
+    # Track container identities along the current traversal path only, so a value
+    # shared by separate branches (acyclic) is still exported, while a value that
+    # refers back to itself raises a clear error instead of recursing forever.
+    if _active is None:
+        _active = set()
     if is_dataclass(value):
-        result: dict[str, Any] = {}
-        for field in fields(value):
-            if not include_values and (
-                field.name == "top_values"
-                or (isinstance(value, CategoricalContext) and field.name == "values")
-            ):
-                result[field.name] = []
-            else:
-                result[field.name] = _normalize(
-                    getattr(value, field.name), include_values,
-                    evidence_details=(type(value).__name__ == "Evidence" and field.name == "details"),
-                )
-        return result
+        if id(value) in _active:
+            raise _circular_reference_error(_path)
+        _active.add(id(value))
+        try:
+            result: dict[str, Any] = {}
+            for field in fields(value):
+                if not include_values and (
+                    field.name == "top_values"
+                    or (isinstance(value, CategoricalContext) and field.name == "values")
+                ):
+                    result[field.name] = []
+                else:
+                    result[field.name] = _normalize(
+                        getattr(value, field.name), include_values,
+                        evidence_details=(type(value).__name__ == "Evidence" and field.name == "details"),
+                        _active=_active, _path=f"{_path}.{field.name}" if _path else field.name,
+                    )
+            return result
+        finally:
+            _active.discard(id(value))
     if isinstance(value, Mapping):
-        result = {}
-        for key, item in value.items():
-            if evidence_details and not include_values and isinstance(item, str):
-                continue
-            if evidence_details and not include_values and isinstance(item, (tuple, list)) and any(isinstance(v, str) for v in item):
-                continue
-            result[str(key)] = _normalize(item, include_values, evidence_details=evidence_details)
-        return result
+        if id(value) in _active:
+            raise _circular_reference_error(_path)
+        _active.add(id(value))
+        try:
+            result = {}
+            for key, item in value.items():
+                if evidence_details and not include_values and isinstance(item, str):
+                    continue
+                if evidence_details and not include_values and isinstance(item, (tuple, list)) and any(isinstance(v, str) for v in item):
+                    continue
+                result[str(key)] = _normalize(
+                    item, include_values, evidence_details=evidence_details,
+                    _active=_active, _path=f"{_path}[{key!r}]",
+                )
+            return result
+        finally:
+            _active.discard(id(value))
     if isinstance(value, (tuple, list)):
-        return [_normalize(v, include_values, evidence_details=evidence_details) for v in value]
+        if id(value) in _active:
+            raise _circular_reference_error(_path)
+        _active.add(id(value))
+        try:
+            return [
+                _normalize(
+                    item, include_values, evidence_details=evidence_details,
+                    _active=_active, _path=f"{_path}[{index}]",
+                )
+                for index, item in enumerate(value)
+            ]
+        finally:
+            _active.discard(id(value))
     if isinstance(value, (datetime, date)):
         return value.isoformat()
     if hasattr(value, "item"):
         try:
-            return _normalize(value.item(), include_values, evidence_details=evidence_details)
+            return _normalize(
+                value.item(), include_values, evidence_details=evidence_details,
+                _active=_active, _path=_path,
+            )
+        except _CircularReferenceError:
+            raise
         except (ValueError, TypeError):
             pass
     if isinstance(value, float) and not math.isfinite(value):
