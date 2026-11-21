@@ -59,6 +59,32 @@ python -m twine check dist/*
 python scripts/validate_package.py
 ```
 
+### Running the quickstart with a legacy Windows stdout encoding
+
+The end-to-end example prints Unicode symbols, including the `⚠` warning marker in compact output:
+
+```bash
+python -m examples.quickstart
+```
+
+On Windows, when stdout uses a legacy encoding such as `cp1252` and the output is redirected or captured (for example, piped through PowerShell), Python can raise `UnicodeEncodeError` before the summary and compact report finish printing. This is an output-encoding issue, not a problem with the example itself, and no global Windows setting needs to change.
+
+To reproduce the failure in PowerShell, temporarily override the stdout encoding, run the default command with its output captured, and then clear the override:
+
+```powershell
+$env:PYTHONIOENCODING = 'cp1252'
+python -m examples.quickstart | Out-String
+Remove-Item Env:PYTHONIOENCODING
+```
+
+`PYTHONIOENCODING` takes precedence over the interpreter's UTF-8 mode, so clear that override before running the UTF-8 command. With the override removed, enable UTF-8 for this invocation only:
+
+```powershell
+python -X utf8 -m examples.quickstart
+```
+
+The command completes with the full summary and compact report, and it leaves the system-wide Windows encoding unchanged.
+
 ## Releasing
 
 Set the next PEP 440 version in `project.version` in `pyproject.toml` and `oribi.__version__` in `oribi/__init__.py`. Add a matching `CHANGELOG.md` entry in the same commit. Merge that change, then create a GitHub Release with an annotated tag exactly matching `v<version>`. The release workflow checks the tag against the package metadata, reruns the full test matrix, builds and validates the wheel and source distribution, and publishes those exact artifacts to PyPI only when all prerequisites pass. A version already present on PyPI is immutable. PyPI rejects duplicate uploads and the publish job fails.
